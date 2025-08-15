@@ -1,0 +1,13 @@
+newmtl sm_K20_DiceSet_01:sm_K20_DiceSet_01SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd t_DiceSet_01_Diffuse.png
+Ni 1.00
+newmtl sm_K20_DiceSet_01SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00

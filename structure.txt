@@ -1,0 +1,15 @@
+dnd_dice_roller/
+    lib/
+        main.dart
+        models/
+            preset_roll.dart
+            roll_entry.dart
+        providers/
+            dice_roller_provider.dart
+            theme_provider.dart
+        screens/
+            dice_roller_screen.dart
+        services/
+            persistence_service.dart
+        widgets/
+            rolling_die_animation.dart

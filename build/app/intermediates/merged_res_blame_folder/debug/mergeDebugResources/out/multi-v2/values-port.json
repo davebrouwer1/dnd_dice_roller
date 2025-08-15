@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.dnd_dice_roller.app-mergeDebugResources-52:/values-port/values-port.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\daveb\\.gradle\\caches\\8.10.2\\transforms\\00557dea111ef6cfbac47123b9851b49\\transformed\\appcompat-1.2.0\\res\\values-port\\values-port.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "55",
+                        "endOffsets": "106"
+                    }
+                }
+            ]
+        }
+    ]
+}

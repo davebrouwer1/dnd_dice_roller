@@ -1,0 +1,2 @@
+E:/Projects/dnd_dice_roller/build/.cxx/Debug/523n3n51/arm64-v8a/CMakeFiles/edit_cache.dir
+E:/Projects/dnd_dice_roller/build/.cxx/Debug/523n3n51/arm64-v8a/CMakeFiles/rebuild_cache.dir

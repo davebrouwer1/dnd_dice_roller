@@ -1,0 +1,1319 @@
+..\dnd_dice_roller\lib\main.dart:
+```
+// lib/main.dart
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:provider/provider.dart';
+import 'screens/dice_roller_screen.dart';
+import 'providers/dice_roller_provider.dart';
+import 'providers/theme_provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await MobileAds.instance.initialize();
+  }
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => DiceRollerProvider()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
+}
+
+// --- FANTASY THEME CONSTANTS ---
+const Color kFantasyLightBg = Color(0xFFF5EFE6); // Parchment paper
+const Color kFantasyLightPrimary = Color(0xFF8C1D18); // Deep crimson
+const Color kFantasyLightAccent = Color(0xFFD4AF37); // Old gold
+const Color kFantasyDarkBg = Color(0xFF2C2C2C); // Aged leather / dark stone
+const Color kFantasyDarkPrimary = Color(0xFFD4AF37); // Luminous gold
+const Color kFantasyDarkAccent = Color(0xFFE57373); // Muted red accent
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
+    // Define base text themes
+    final baseTextTheme = Theme.of(context).textTheme;
+    final fantasyTitleTextTheme = GoogleFonts.cinzelTextTheme(baseTextTheme);
+    final fantasyBodyTextTheme = GoogleFonts.ebGaramondTextTheme(baseTextTheme);
+
+    // Combine text themes
+    final combinedLightTextTheme = fantasyTitleTextTheme.copyWith(
+      bodyLarge: fantasyBodyTextTheme.bodyLarge,
+      bodyMedium: fantasyBodyTextTheme.bodyMedium,
+      bodySmall: fantasyBodyTextTheme.bodySmall,
+      labelLarge: fantasyBodyTextTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.bold, // Make button text bold
+        fontSize: 16,
+      ),
+    );
+
+    final combinedDarkTextTheme = fantasyTitleTextTheme
+        .copyWith(
+          bodyLarge: fantasyBodyTextTheme.bodyLarge?.copyWith(
+            color: kFantasyLightBg,
+          ),
+          bodyMedium: fantasyBodyTextTheme.bodyMedium?.copyWith(
+            color: kFantasyLightBg,
+          ),
+          bodySmall: fantasyBodyTextTheme.bodySmall?.copyWith(
+            color: Colors.grey[400],
+          ),
+          labelLarge: fantasyBodyTextTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: kFantasyDarkBg, // Text on golden buttons
+          ),
+        )
+        .apply(displayColor: kFantasyLightBg, bodyColor: kFantasyLightBg);
+
+    return MaterialApp(
+      title: 'D&D Dice Roller',
+      // --- LIGHT THEME (Parchment & Crimson) ---
+      theme: ThemeData(
+        brightness: Brightness.light,
+        primaryColor: kFantasyLightPrimary,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: kFantasyLightPrimary,
+          brightness: Brightness.light,
+          background: kFantasyLightBg,
+          primary: kFantasyLightPrimary,
+          secondary: kFantasyLightAccent,
+          onPrimary: kFantasyLightBg, // Text on primary color
+          onBackground: Colors.brown[900]!, // Text on parchment
+        ),
+        useMaterial3: true,
+        textTheme: combinedLightTextTheme,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          titleTextStyle: fantasyTitleTextTheme.headlineSmall?.copyWith(
+            color: kFantasyLightPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+          iconTheme: const IconThemeData(color: kFantasyLightPrimary),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: kFantasyLightBg.withOpacity(0.7),
+          selectedColor: kFantasyLightPrimary,
+          labelStyle: TextStyle(color: Colors.brown[900]),
+          secondaryLabelStyle: const TextStyle(color: kFantasyLightBg),
+          checkmarkColor: kFantasyLightBg,
+          side: BorderSide(color: Colors.brown[200]!),
+        ),
+      ),
+      // --- DARK THEME (Ancient Tome & Gold) ---
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primaryColor: kFantasyDarkPrimary,
+        scaffoldBackgroundColor: kFantasyDarkBg,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: kFantasyDarkPrimary,
+          brightness: Brightness.dark,
+          background: kFantasyDarkBg,
+          primary: kFantasyDarkPrimary,
+          secondary: kFantasyDarkAccent,
+          onPrimary: kFantasyDarkBg, // Text on primary color
+          onBackground: kFantasyLightBg, // Text on dark background
+        ),
+        useMaterial3: true,
+        textTheme: combinedDarkTextTheme,
+        appBarTheme: AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          titleTextStyle: fantasyTitleTextTheme.headlineSmall?.copyWith(
+            color: kFantasyDarkPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+          iconTheme: const IconThemeData(color: kFantasyDarkPrimary),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: kFantasyDarkBg.withOpacity(0.7),
+          selectedColor: kFantasyDarkPrimary,
+          labelStyle: TextStyle(color: Colors.grey[300]),
+          secondaryLabelStyle: const TextStyle(color: kFantasyDarkBg),
+          checkmarkColor: kFantasyDarkBg,
+          side: BorderSide(color: Colors.grey[700]!),
+        ),
+      ),
+      themeMode: themeProvider.themeMode,
+      home: const DiceRollerScreen(),
+    );
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\models\preset_roll.dart:
+```
+// lib/models/preset_roll.dart
+import 'package:flutter/foundation.dart';
+
+class PresetRoll {
+  final String id;
+  String name;
+  final int numberOfDice;
+  final int sides;
+  final String baseDiceType;
+  final int modifier;
+  final bool isAdvantage;
+  final bool isDisadvantage;
+
+  PresetRoll({
+    required this.id,
+    required this.name,
+    required this.numberOfDice,
+    required this.sides,
+    required this.baseDiceType,
+    required this.modifier,
+    this.isAdvantage = false,
+    this.isDisadvantage = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'numberOfDice': numberOfDice,
+    'sides': sides,
+    'baseDiceType': baseDiceType,
+    'modifier': modifier,
+    'isAdvantage': isAdvantage,
+    'isDisadvantage': isDisadvantage,
+  };
+
+  factory PresetRoll.fromJson(Map<String, dynamic> json) => PresetRoll(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    numberOfDice: json['numberOfDice'] as int,
+    sides: json['sides'] as int,
+    baseDiceType: json['baseDiceType'] as String,
+    modifier: json['modifier'] as int,
+    isAdvantage: json['isAdvantage'] as bool? ?? false,
+    isDisadvantage: json['isDisadvantage'] as bool? ?? false,
+  );
+
+  @override
+  String toString() {
+    String advDis = '';
+    if (isAdvantage) advDis = ' (Adv)';
+    if (isDisadvantage) advDis = ' (Dis)';
+    String modStr =
+        modifier == 0 ? '' : (modifier > 0 ? ' +$modifier' : ' $modifier');
+    return '$name: $numberOfDice$baseDiceType$modStr$advDis';
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\models\roll_entry.dart:
+```
+// lib/models/roll_entry.dart
+
+class RollEntry {
+  final String description;
+  final int totalResult;
+  final List<int> individualRolls;
+  final int modifierValue;
+  final bool wasAdvantage;
+  final bool wasDisadvantage;
+  final List<int>? advDisRawRolls;
+
+  RollEntry({
+    required this.description,
+    required this.totalResult,
+    required this.individualRolls,
+    required this.modifierValue,
+    this.wasAdvantage = false,
+    this.wasDisadvantage = false,
+    this.advDisRawRolls,
+  });
+
+  int? get _dieSides {
+    if (individualRolls.length != 1) return null;
+    final match = RegExp(r"1d(\d+|%)").firstMatch(description);
+    if (match != null) {
+      String sideStr = match.group(1)!;
+      if (sideStr == '%') return 100;
+      return int.tryParse(sideStr);
+    }
+    return null;
+  }
+
+  bool get isCriticalSuccess {
+    if (individualRolls.length == 1) {
+      final sides = _dieSides;
+      return sides != null && individualRolls.first == sides;
+    }
+    return false;
+  }
+
+  bool get isCriticalFumble {
+    if (individualRolls.length == 1) {
+      final sides = _dieSides;
+      return sides != null && individualRolls.first == 1;
+    }
+    return false;
+  }
+
+  @override
+  String toString() {
+    String rollsStr = individualRolls.join(', ');
+    String modStr =
+        modifierValue == 0
+            ? ""
+            : (modifierValue > 0 ? "+$modifierValue" : "$modifierValue");
+    String advDisStr = "";
+    if (wasAdvantage) advDisStr = " (Adv)";
+    if (wasDisadvantage) advDisStr = " (Dis)";
+    String extraRollsDisplay = "";
+    if (advDisRawRolls != null && advDisRawRolls!.length == 2) {
+      extraRollsDisplay = " [${advDisRawRolls!.join(', ')}]";
+    }
+    return "$description$advDisStr (Roll: $rollsStr$extraRollsDisplay) $modStr = $totalResult";
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\providers\dice_roller_provider.dart:
+```
+// lib/providers/dice_roller_provider.dart
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+
+// CORRECT: Imports the models from their new, single source of truth.
+import '../models/preset_roll.dart';
+import '../models/roll_entry.dart';
+import '../services/persistence_service.dart';
+
+// --- Constants for Provider Logic ---
+const int kMaxDiceCount = 100;
+const int kMinDiceCount = 1;
+const int kMaxModifier = 100;
+const int kMinModifier = -100;
+const int kMaxHistoryLength = 20;
+
+// CORRECT: The PresetRoll and RollEntry classes are NOT defined here anymore.
+
+class DiceRollerProvider with ChangeNotifier {
+  final Random _random = Random();
+
+  // --- State Variables ---
+  List<RollEntry> _history = [];
+  bool _adsRemoved = false;
+  List<PresetRoll> _presets = [];
+
+  int _numberOfDice = kMinDiceCount;
+  int _modifier = 0;
+  bool _isAdvantage = false;
+  bool _isDisadvantage = false;
+  int _currentDieSidesForPreset = 20;
+  String _currentBaseDiceTypeForPreset = "d20";
+
+  bool _isRolling = false;
+
+  // --- Getters ---
+  List<RollEntry> get history => List.unmodifiable(_history);
+  bool get adsRemoved => _adsRemoved;
+  List<PresetRoll> get presets => List.unmodifiable(_presets);
+  int get numberOfDice => _numberOfDice;
+  int get modifier => _modifier;
+  bool get isAdvantage => _isAdvantage;
+  bool get isDisadvantage => _isDisadvantage;
+  bool get isRolling => _isRolling;
+  int get currentDieSides => _currentDieSidesForPreset;
+
+  // --- Constructor ---
+  DiceRollerProvider() {
+    _initialize();
+  }
+
+  // --- Initialization ---
+  Future<void> _initialize() async {
+    _adsRemoved = await PersistenceService.loadAdsRemovedStatus();
+    _presets = await PersistenceService.loadPresets();
+    notifyListeners();
+  }
+
+  // --- State Management Methods ---
+
+  Future<void> setAdsRemoved(bool value) async {
+    _adsRemoved = value;
+    await PersistenceService.saveAdsRemovedStatus(value);
+    notifyListeners();
+  }
+
+  void setNumberOfDice(int count) {
+    int newCount = count.clamp(kMinDiceCount, kMaxDiceCount);
+    if (_numberOfDice != newCount) {
+      _numberOfDice = newCount;
+      if (_numberOfDice != 1) {
+        _isAdvantage = false;
+        _isDisadvantage = false;
+      }
+      notifyListeners();
+    }
+  }
+
+  void setModifier(int modValue) {
+    int newModifier = modValue.clamp(kMinModifier, kMaxModifier);
+    if (_modifier != newModifier) {
+      _modifier = newModifier;
+      notifyListeners();
+    }
+  }
+
+  void resetConfiguration() {
+    bool needsNotify = false;
+    if (_numberOfDice != kMinDiceCount) {
+      _numberOfDice = kMinDiceCount;
+      needsNotify = true;
+    }
+    if (_modifier != 0) {
+      _modifier = 0;
+      needsNotify = true;
+    }
+    if (_isAdvantage) {
+      _isAdvantage = false;
+      needsNotify = true;
+    }
+    if (_isDisadvantage) {
+      _isDisadvantage = false;
+      needsNotify = true;
+    }
+    if (needsNotify) {
+      notifyListeners();
+    }
+  }
+
+  void toggleAdvantage() {
+    bool originalAdvantage = _isAdvantage;
+    _isAdvantage = !_isAdvantage;
+    if (_isAdvantage) {
+      _isDisadvantage = false;
+      if (_numberOfDice != 1) {
+        _numberOfDice = 1;
+      }
+    }
+    if (originalAdvantage != _isAdvantage ||
+        (_isAdvantage && _numberOfDice != 1)) {
+      notifyListeners();
+    } else if (originalAdvantage != _isAdvantage) {
+      notifyListeners();
+    }
+  }
+
+  void toggleDisadvantage() {
+    bool originalDisadvantage = _isDisadvantage;
+    _isDisadvantage = !_isDisadvantage;
+    if (_isDisadvantage) {
+      _isAdvantage = false;
+      if (_numberOfDice != 1) {
+        _numberOfDice = 1;
+      }
+    }
+    if (originalDisadvantage != _isDisadvantage ||
+        (_isDisadvantage && _numberOfDice != 1)) {
+      notifyListeners();
+    } else if (originalDisadvantage != _isDisadvantage) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> rollDice(int sides, String baseDiceType) async {
+    _currentDieSidesForPreset = sides;
+    _currentBaseDiceTypeForPreset = baseDiceType;
+
+    List<int> individualRolls = [];
+    int sumOfRolls = 0;
+    List<int>? actualAdvDisRolls;
+    bool applyAdvDis = (_isAdvantage || _isDisadvantage) && _numberOfDice == 1;
+    String currentDescription;
+
+    if (applyAdvDis) {
+      int roll1 = _random.nextInt(sides) + 1;
+      int roll2 = _random.nextInt(sides) + 1;
+      actualAdvDisRolls = [roll1, roll2];
+      sumOfRolls = _isAdvantage ? max(roll1, roll2) : min(roll1, roll2);
+      individualRolls.add(sumOfRolls);
+      currentDescription = "1$baseDiceType";
+    } else {
+      for (int i = 0; i < _numberOfDice; i++) {
+        int roll = _random.nextInt(sides) + 1;
+        individualRolls.add(roll);
+        sumOfRolls += roll;
+      }
+      currentDescription = "${_numberOfDice}$baseDiceType";
+    }
+
+    int totalResult = sumOfRolls + _modifier;
+    final entry = RollEntry(
+      description: currentDescription,
+      totalResult: totalResult,
+      individualRolls: individualRolls,
+      modifierValue: _modifier,
+      wasAdvantage: applyAdvDis && _isAdvantage,
+      wasDisadvantage: applyAdvDis && _isDisadvantage,
+      advDisRawRolls: actualAdvDisRolls,
+    );
+
+    _history.insert(0, entry);
+    if (_history.length > kMaxHistoryLength) {
+      _history.removeLast();
+    }
+
+    _isRolling = true;
+    notifyListeners();
+
+    await Future.delayed(const Duration(milliseconds: 3000));
+
+    _isRolling = false;
+    notifyListeners();
+  }
+
+  // --- Preset Management Methods ---
+
+  Future<void> addPreset(String name) async {
+    if (name.trim().isEmpty) return;
+
+    final newPreset = PresetRoll(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      name: name.trim(),
+      numberOfDice: _numberOfDice,
+      sides: _currentDieSidesForPreset,
+      baseDiceType: _currentBaseDiceTypeForPreset,
+      modifier: _modifier,
+      isAdvantage: _isAdvantage,
+      isDisadvantage: _isDisadvantage,
+    );
+    _presets.add(newPreset);
+    await PersistenceService.savePresets(_presets);
+    notifyListeners();
+  }
+
+  Future<void> removePreset(String presetId) async {
+    _presets.removeWhere((preset) => preset.id == presetId);
+    await PersistenceService.savePresets(_presets);
+    notifyListeners();
+  }
+
+  Future<void> updatePresetName(String presetId, String newName) async {
+    if (newName.trim().isEmpty) return;
+    try {
+      final preset = _presets.firstWhere((p) => p.id == presetId);
+      preset.name = newName.trim();
+      await PersistenceService.savePresets(_presets);
+      notifyListeners();
+    } catch (e) {
+      debugPrint(
+        "Error updating preset name: Preset with ID $presetId not found. $e",
+      );
+    }
+  }
+
+  void loadPresetConfiguration(PresetRoll preset) {
+    _numberOfDice = preset.numberOfDice;
+    _modifier = preset.modifier;
+    _isAdvantage = preset.isAdvantage;
+    _isDisadvantage = preset.isDisadvantage;
+    _currentDieSidesForPreset = preset.sides;
+    _currentBaseDiceTypeForPreset = preset.baseDiceType;
+
+    if (_isAdvantage || _isDisadvantage) {
+      _numberOfDice = 1;
+    }
+    notifyListeners();
+  }
+
+  void clearHistory() {
+    _history.clear();
+    notifyListeners();
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\providers\theme_provider.dart:
+```
+// lib/providers/theme_provider.dart
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+const String kThemePreference = 'theme_preference';
+
+class ThemeProvider with ChangeNotifier {
+  ThemeMode _themeMode = ThemeMode.system; // Default to system
+
+  ThemeMode get themeMode => _themeMode;
+
+  ThemeProvider() {
+    _loadThemePreference();
+  }
+
+  Future<void> _loadThemePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Get the stored integer, default to ThemeMode.system.index if not found
+    int preferredThemeIndex =
+        prefs.getInt(kThemePreference) ?? ThemeMode.system.index;
+    _themeMode =
+        ThemeMode.values[preferredThemeIndex.clamp(
+          0,
+          ThemeMode.values.length - 1,
+        )];
+    notifyListeners();
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    if (_themeMode == mode) return; // No change
+
+    _themeMode = mode;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(kThemePreference, mode.index);
+  }
+
+  // Helper to cycle through themes
+  void cycleTheme() {
+    if (_themeMode == ThemeMode.system) {
+      setThemeMode(ThemeMode.light);
+    } else if (_themeMode == ThemeMode.light) {
+      setThemeMode(ThemeMode.dark);
+    } else {
+      // ThemeMode.dark
+      setThemeMode(ThemeMode.system);
+    }
+  }
+
+  IconData get themeIcon {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return Icons.wb_sunny_outlined;
+      case ThemeMode.dark:
+        return Icons.nightlight_round_outlined;
+      case ThemeMode.system:
+      default:
+        return Icons.settings_brightness_outlined;
+    }
+  }
+
+  String get themeTooltip {
+    switch (_themeMode) {
+      case ThemeMode.light:
+        return 'Switch to Dark Mode';
+      case ThemeMode.dark:
+        return 'Switch to System Default';
+      case ThemeMode.system:
+      default:
+        return 'Switch to Light Mode';
+    }
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\screens\dice_roller_screen.dart:
+```
+// lib/screens/dice_roller_screen.dart
+import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:provider/provider.dart';
+
+// --- CORRECTED IMPORTS ---
+import '../providers/dice_roller_provider.dart';
+import '../providers/theme_provider.dart';
+import '../widgets/rolling_die_animation.dart';
+import '../models/roll_entry.dart'; // We need this for the history dialog
+// -------------------------
+
+class DiceRollerScreen extends StatefulWidget {
+  const DiceRollerScreen({super.key});
+
+  @override
+  State<DiceRollerScreen> createState() => _DiceRollerScreenState();
+}
+
+class _DiceRollerScreenState extends State<DiceRollerScreen> {
+  BannerAd? _bannerAd;
+  bool _isBannerAdLoaded = false;
+  bool _adsSupported = false;
+
+  final String _androidTestBannerId = 'ca-app-pub-3940256099942544/6300978111';
+  final String _iosTestBannerId = 'ca-app-pub-3940256099942544/2934735716';
+  String _bannerAdUnitId = '';
+
+  final TextEditingController _numDiceController = TextEditingController();
+  final TextEditingController _modifierController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      _adsSupported = true;
+      _bannerAdUnitId =
+          Platform.isAndroid ? _androidTestBannerId : _iosTestBannerId;
+    } else {
+      _adsSupported = false;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<DiceRollerProvider>();
+      _numDiceController.text = provider.numberOfDice.toString();
+      _modifierController.text = provider.modifier.toString();
+
+      _numDiceController.addListener(() {
+        final dProvider = context.read<DiceRollerProvider>();
+        final String text = _numDiceController.text;
+        final count = int.tryParse(text);
+        if (count != null && count != dProvider.numberOfDice) {
+          dProvider.setNumberOfDice(count);
+        }
+      });
+
+      _modifierController.addListener(() {
+        final dProvider = context.read<DiceRollerProvider>();
+        final String text = _modifierController.text;
+        final mod = int.tryParse(text);
+        if (mod != null && mod != dProvider.modifier) {
+          dProvider.setModifier(mod);
+        }
+      });
+
+      context.read<DiceRollerProvider>().addListener(
+        _updateTextFieldsFromProvider,
+      );
+
+      if (_adsSupported) {
+        final adsRemoved = context.read<DiceRollerProvider>().adsRemoved;
+        if (!adsRemoved) _loadBannerAd();
+      }
+    });
+  }
+
+  void _updateTextFieldsFromProvider() {
+    if (!mounted) return;
+    final provider = context.read<DiceRollerProvider>();
+
+    if (_numDiceController.text != provider.numberOfDice.toString()) {
+      _numDiceController.text = provider.numberOfDice.toString();
+    }
+    if (_modifierController.text != provider.modifier.toString()) {
+      _modifierController.text = provider.modifier.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    context.read<DiceRollerProvider>().removeListener(
+      _updateTextFieldsFromProvider,
+    );
+    _bannerAd?.dispose();
+    _numDiceController.dispose();
+    _modifierController.dispose();
+    super.dispose();
+  }
+
+  void _loadBannerAd() {
+    if (!_adsSupported || _bannerAdUnitId.isEmpty) return;
+    final adsRemoved = context.read<DiceRollerProvider>().adsRemoved;
+    if (adsRemoved) return;
+
+    _bannerAd = BannerAd(
+      adUnitId: _bannerAdUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (mounted) setState(() => _isBannerAdLoaded = true);
+        },
+        onAdFailedToLoad: (ad, err) {
+          debugPrint('BannerAd failed to load: $err');
+          ad.dispose();
+        },
+      ),
+    )..load();
+  }
+
+  Widget _buildDieButton(int sides, String label, DiceRollerProvider provider) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
+          shape: BeveledRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: theme.colorScheme.onPrimary.withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          provider.rollDice(sides, label);
+        },
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _buildCounterField({
+    required String label,
+    required TextEditingController controller,
+    required VoidCallback onDecrement,
+    required VoidCallback onIncrement,
+    bool isModifier = false,
+  }) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(label, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: IconButton.outlined(
+                icon: const Icon(Icons.remove),
+                padding: EdgeInsets.zero,
+                tooltip: 'Decrement $label',
+                onPressed: onDecrement,
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 60,
+              height: 40,
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.numberWithOptions(
+                  signed: isModifier,
+                ),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(fontSize: 18),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^-?\d*')),
+                ],
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8.0),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.primary,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: IconButton.outlined(
+                icon: const Icon(Icons.add),
+                padding: EdgeInsets.zero,
+                tooltip: 'Increment $label',
+                onPressed: onIncrement,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final diceProvider = context.watch<DiceRollerProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
+    final latestRoll =
+        diceProvider.history.isNotEmpty ? diceProvider.history.first : null;
+    final isCurrentlyDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Thematic colors for critical success/fumble
+    final critSuccessColor =
+        isCurrentlyDark ? Colors.green.shade300 : const Color(0xFF2E7D32);
+    final critFumbleColor =
+        isCurrentlyDark ? Colors.red.shade300 : const Color(0xFFC62828);
+    final critSuccessBg =
+        isCurrentlyDark ? Colors.green.withOpacity(0.1) : Colors.green.shade50;
+    final critFumbleBg =
+        isCurrentlyDark ? Colors.red.withOpacity(0.1) : Colors.red.shade50;
+
+    return Scaffold(
+      extendBodyBehindAppBar:
+          true, // Allows body to go behind transparent AppBar
+      appBar: AppBar(
+        title: Text(
+          'D&D Dice Roller',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(themeProvider.themeIcon),
+            tooltip: themeProvider.themeTooltip,
+            onPressed: () => context.read<ThemeProvider>().cycleTheme(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Reset Configuration',
+            onPressed:
+                () => context.read<DiceRollerProvider>().resetConfiguration(),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history_outlined),
+            tooltip: 'Show History',
+            onPressed: () => _showHistoryDialog(context),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          // --- BACKGROUND TEXTURE ---
+          // Make sure you have an image at 'assets/images/parchment_background.jpg'
+          // or change the path to your own image.
+          Positioned.fill(
+            child: Image.asset(
+              isCurrentlyDark
+                  ? 'assets/images/dark_background.jpg' // Example for dark theme
+                  : 'assets/images/background.jpg', // Example for light theme
+              fit: BoxFit.cover,
+              color: isCurrentlyDark ? Colors.black.withOpacity(0.3) : null,
+              colorBlendMode: isCurrentlyDark ? BlendMode.darken : null,
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const SizedBox(height: 16), // Space below AppBar
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCounterField(
+                        label: "Dice",
+                        controller: _numDiceController,
+                        onDecrement:
+                            () => context
+                                .read<DiceRollerProvider>()
+                                .setNumberOfDice(diceProvider.numberOfDice - 1),
+                        onIncrement:
+                            () => context
+                                .read<DiceRollerProvider>()
+                                .setNumberOfDice(diceProvider.numberOfDice + 1),
+                      ),
+                      _buildCounterField(
+                        label: "Modifier",
+                        controller: _modifierController,
+                        isModifier: true,
+                        onDecrement:
+                            () => context
+                                .read<DiceRollerProvider>()
+                                .setModifier(diceProvider.modifier - 1),
+                        onIncrement:
+                            () => context
+                                .read<DiceRollerProvider>()
+                                .setModifier(diceProvider.modifier + 1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (diceProvider.numberOfDice == 1)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        FilterChip(
+                          label: const Text('Advantage'),
+                          selected: diceProvider.isAdvantage,
+                          onSelected:
+                              (_) =>
+                                  context
+                                      .read<DiceRollerProvider>()
+                                      .toggleAdvantage(),
+                        ),
+                        const SizedBox(width: 10),
+                        FilterChip(
+                          label: const Text('Disadvantage'),
+                          selected: diceProvider.isDisadvantage,
+                          onSelected:
+                              (_) =>
+                                  context
+                                      .read<DiceRollerProvider>()
+                                      .toggleDisadvantage(),
+                        ),
+                      ],
+                    ),
+                  if (diceProvider.numberOfDice == 1)
+                    const SizedBox(height: 10),
+                  Center(
+                    child: Wrap(
+                      alignment: WrapAlignment.center,
+                      children: <Widget>[
+                        _buildDieButton(4, 'd4', diceProvider),
+                        _buildDieButton(6, 'd6', diceProvider),
+                        _buildDieButton(8, 'd8', diceProvider),
+                        _buildDieButton(10, 'd10', diceProvider),
+                        _buildDieButton(12, 'd12', diceProvider),
+                        _buildDieButton(20, 'd20', diceProvider),
+                        _buildDieButton(100, 'd%', diceProvider),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // --- UPDATED WIDGET CALL ---
+                  if (diceProvider.isRolling)
+                    RollingDieAnimation(
+                      sides: diceProvider.currentDieSides,
+                      // The 'finalResult' parameter is no longer needed.
+                    )
+                  else if (latestRoll != null)
+                    Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onBackground.withOpacity(0.2),
+                        ),
+                      ),
+                      color:
+                          latestRoll.isCriticalSuccess
+                              ? critSuccessBg
+                              : (latestRoll.isCriticalFumble
+                                  ? critFumbleBg
+                                  : null),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Latest: ${latestRoll.description}'
+                              '${latestRoll.wasAdvantage ? " (Adv)" : ""}'
+                              '${latestRoll.wasDisadvantage ? " (Dis)" : ""}'
+                              ' ${latestRoll.modifierValue >= 0 ? "+" : ""}${latestRoll.modifierValue}',
+                              style: Theme.of(context).textTheme.titleLarge,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${latestRoll.totalResult}',
+                              style: Theme.of(
+                                context,
+                              ).textTheme.displayMedium?.copyWith(
+                                color:
+                                    latestRoll.isCriticalSuccess
+                                        ? critSuccessColor
+                                        : (latestRoll.isCriticalFumble
+                                            ? critFumbleColor
+                                            : null),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                "Roll: ${latestRoll.individualRolls.join(', ')}"
+                                "${latestRoll.advDisRawRolls != null ? ' from [${latestRoll.advDisRawRolls!.join(', ')}]' : ''}",
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    // Adjusted height to match the new animation's height
+                    SizedBox(
+                      height: 150,
+                      child: Center(
+                        child: Text(
+                          "Roll some dice!",
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                      ),
+                    ),
+
+                  const Spacer(),
+                  if (_adsSupported && _isBannerAdLoaded && _bannerAd != null)
+                    SizedBox(
+                      width: _bannerAd!.size.width.toDouble(),
+                      height: _bannerAd!.size.height.toDouble(),
+                      child: AdWidget(ad: _bannerAd!),
+                    )
+                  else
+                    const SizedBox(height: 50),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHistoryDialog(BuildContext context) {
+    // ... (This method remains unchanged and works as expected)
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final history = dialogContext.watch<DiceRollerProvider>().history;
+        final isDialogDark =
+            Theme.of(dialogContext).brightness == Brightness.dark;
+
+        return AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.background,
+          title: Text(
+            'Roll History',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child:
+                history.isEmpty
+                    ? const Center(child: Text('No rolls yet.'))
+                    : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: history.length,
+                      itemBuilder: (_, index) {
+                        final RollEntry entry = history[index];
+                        return ListTile(
+                          title: Text(
+                            entry.toString(),
+                            style: TextStyle(
+                              color:
+                                  entry.isCriticalSuccess
+                                      ? (isDialogDark
+                                          ? Colors.green.shade300
+                                          : Colors.green.shade700)
+                                      : (entry.isCriticalFumble
+                                          ? (isDialogDark
+                                              ? Colors.red.shade300
+                                              : Colors.red.shade700)
+                                          : null),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+          ),
+          actions: <Widget>[
+            if (history.isNotEmpty)
+              TextButton(
+                child: const Text('Clear History'),
+                onPressed: () {
+                  dialogContext.read<DiceRollerProvider>().clearHistory();
+                },
+              ),
+            TextButton(
+              child: const Text('Close'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\services\persistence_service.dart:
+```
+// lib/services/persistence_service.dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/preset_roll.dart'; // Import the model
+
+// Define the keys as constants so they can be reused without typos
+const String kAdsRemovedPrefsKey = 'ads_removed_status';
+const String kPresetsPrefsKey = 'dice_presets_list';
+
+class PersistenceService {
+  // A private constructor to prevent instantiation
+  PersistenceService._();
+
+  // --- Ads Status Persistence ---
+
+  static Future<bool> loadAdsRemovedStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(kAdsRemovedPrefsKey) ?? false;
+  }
+
+  static Future<void> saveAdsRemovedStatus(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(kAdsRemovedPrefsKey, value);
+  }
+
+  // --- Presets Persistence ---
+
+  static Future<List<PresetRoll>> loadPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? presetsJson = prefs.getStringList(kPresetsPrefsKey);
+
+    if (presetsJson == null) {
+      return []; // Return an empty list if no data is found
+    }
+
+    try {
+      return presetsJson
+          .map(
+            (jsonString) => PresetRoll.fromJson(
+              jsonDecode(jsonString) as Map<String, dynamic>,
+            ),
+          )
+          .toList();
+    } catch (e) {
+      debugPrint("Error decoding presets: $e. Clearing corrupted presets.");
+      // If data is corrupted, clear it to prevent future errors
+      await prefs.remove(kPresetsPrefsKey);
+      return [];
+    }
+  }
+
+  static Future<void> savePresets(List<PresetRoll> presets) async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String> presetsJson =
+        presets.map((preset) => jsonEncode(preset.toJson())).toList();
+    await prefs.setStringList(kPresetsPrefsKey, presetsJson);
+  }
+}
+
+```
+
+..\dnd_dice_roller\lib\widgets\rolling_die_animation.dart:
+```
+// lib/widgets/rolling_die_animation.dart
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart'; // <--- IMPORT ModelViewer
+
+class RollingDieAnimation extends StatefulWidget {
+  final int sides;
+  // The finalResult is no longer needed here, as the result is displayed
+  // in the card on the main screen after the animation finishes.
+  // final int finalResult;
+
+  const RollingDieAnimation({
+    super.key,
+    required this.sides,
+    // required this.finalResult,
+  });
+
+  @override
+  State<RollingDieAnimation> createState() => _RollingDieAnimationState();
+}
+
+class _RollingDieAnimationState extends State<RollingDieAnimation>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _orbitAnimation; // For spinning the model
+  late final Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 3000), // Match provider delay
+      vsync: this,
+    );
+
+    // Animate the camera's horizontal orbit (theta) for a spinning effect
+    _orbitAnimation = Tween<double>(
+      begin: 0,
+      end: 4 * pi, // Two full spins
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    // Keep the slide-in animation
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0.0, -2.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.bounceOut));
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Returns the correct asset path for the given die sides.
+  String _getModelPathForSides(int sides) {
+    return 'assets/models/d20.glb';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final modelPath = _getModelPathForSides(
+      widget.sides,
+    ); // Use the original function now
+    debugPrint(
+      "--- [DEBUG] Building ModelViewer with path: $modelPath ---",
+    ); // <-- ADD THIS LINE
+    return Center(
+      child: SizedBox(
+        height: 150, // Increase height slightly for better 3D view
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, child) {
+              // We use the animation value to update the camera-orbit attribute
+              return ModelViewer(
+                src: _getModelPathForSides(widget.sides),
+
+                alt: "A 3D model of a spinning d${widget.sides}",
+                ar: false, // Disable Augmented Reality features
+                autoRotate: false, // We control rotation manually
+                disableZoom: true, // Prevent user from zooming
+                disablePan: true, // Prevent user from panning
+                cameraControls: false, // Disable all user controls
+                // "camera-orbit" takes: "THETA PHI RADIUS"
+                // We animate the theta value for a horizontal spin.
+                // '75deg' is a good angle to see the top face.
+                // '120%' makes the model fill the view nicely.
+                cameraOrbit: "${_orbitAnimation.value}rad 75deg 120%",
+                backgroundColor: Colors.transparent,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+```
+
