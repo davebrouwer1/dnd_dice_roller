@@ -21,6 +21,8 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
   String? _currentDieType;
   String? _lastRollId;
 
+  DiceRollerProvider? _diceRollerProvider;
+
   // Map die types to their model asset paths
   final Map<String, String> _dieModelPaths = {
     'd4': 'assets/models/d4.glb',
@@ -36,6 +38,34 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
   void initState() {
     super.initState();
     _initializeWebView();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // We listen to the provider here, which is safer than in initState.
+    // This method is called when the widget is first built and whenever its
+    // dependencies change.
+    final newProvider = Provider.of<DiceRollerProvider>(context);
+    if (_diceRollerProvider != newProvider) {
+      _diceRollerProvider?.removeListener(_onProviderChange);
+      _diceRollerProvider = newProvider;
+      _diceRollerProvider?.addListener(_onProviderChange);
+    }
+  }
+
+  @override
+  void dispose() {
+    _diceRollerProvider?.removeListener(_onProviderChange);
+    super.dispose();
+  }
+
+  void _onProviderChange() {
+    // This method is now called outside of the build cycle.
+    // It's safe to call methods that might trigger setState here.
+    if (_diceRollerProvider?.isRolling ?? false) {
+      _handleRoll();
+    }
   }
 
   Future<void> _initializeWebView() async {
@@ -62,6 +92,9 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
             setState(() {
               _isModelReadyForRoll = true;
             });
+            // After the model is ready, we might need to immediately trigger the roll
+            // if a roll was requested while the model was loading.
+            _handleRoll();
           }
         },
       )
@@ -69,7 +102,7 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
         'DiceRollComplete',
         onMessageReceived: (JavaScriptMessage message) {
           if (mounted) {
-            context.read<DiceRollerProvider>().endRolling();
+            _diceRollerProvider?.endRolling();
           }
         },
       );
@@ -89,27 +122,31 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
   }
 
   void _handleRoll() {
-    if (!_isWebViewReady || _controller == null) return;
+    if (!_isWebViewReady || _controller == null || _diceRollerProvider == null) return;
 
-    final provider = context.read<DiceRollerProvider>();
+    final provider = _diceRollerProvider!;
     if (provider.history.isEmpty) return;
 
     final latestRoll = provider.history.first;
     final requiredDieType = provider.currentBaseDiceType;
 
     final currentRollId = latestRoll.hashCode.toString();
-    if (_lastRollId == currentRollId && _isModelReadyForRoll) {
+    // If we've already processed this roll, don't do it again.
+    if (_lastRollId == currentRollId) {
       return;
     }
 
     if (_currentDieType != requiredDieType) {
-      _isModelReadyForRoll = false;
+      // Don't set a "in progress" flag, just let the state (_isModelReadyForRoll)
+      // handle it. If we get here, a model change is needed.
       _changeDiceModel(requiredDieType);
-      return;
+      return; // Exit and wait for DiceModelReady to call _handleRoll again.
     }
 
     if (_isModelReadyForRoll) {
-      _lastRollId = currentRollId;
+      setState(() {
+        _lastRollId = currentRollId;
+      });
       _triggerRoll(latestRoll.individualRolls.first);
     }
   }
@@ -147,6 +184,8 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
     final rollData = jsonEncode({'result': finalResult});
     _controller!.runJavaScript('window.rollDie(\'$rollData\');');
 
+    // Set model as not-ready for the *next* roll.
+    // This prevents re-triggering the same roll if the provider updates again.
     setState(() {
       _isModelReadyForRoll = false;
     });
@@ -161,17 +200,9 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
       );
     }
 
-    return Consumer<DiceRollerProvider>(
-      builder: (context, provider, child) {
-        if (provider.isRolling) {
-          _handleRoll();
-        }
-        return child!;
-      },
-      child: SizedBox(
-        height: 150,
-        child: AbsorbPointer(child: WebViewWidget(controller: _controller!)),
-      ),
+    return SizedBox(
+      height: 150,
+      child: AbsorbPointer(child: WebViewWidget(controller: _controller!)),
     );
   }
 }
