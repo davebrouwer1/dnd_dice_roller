@@ -71,7 +71,7 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
   Future<void> _initializeWebView() async {
     final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(Colors.blue) // Diagnostic color
+      ..setBackgroundColor(const Color.fromARGB(1, 0, 0, 0)) // Workaround for transparency
       ..setOnConsoleMessage((message) {
         debugPrint("[WebViewConsole] ${message.level.name}: ${message.message}");
       })
