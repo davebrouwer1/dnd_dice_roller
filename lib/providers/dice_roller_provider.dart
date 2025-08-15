@@ -43,6 +43,7 @@ class DiceRollerProvider with ChangeNotifier {
   bool get isDisadvantage => _isDisadvantage;
   bool get isRolling => _isRolling;
   int get currentDieSides => _currentDieSidesForPreset;
+  String get currentBaseDiceType => _currentBaseDiceTypeForPreset;
 
   // --- Constructor ---
   DiceRollerProvider() {

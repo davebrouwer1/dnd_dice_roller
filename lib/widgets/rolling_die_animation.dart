@@ -15,139 +15,146 @@ class RollingDieAnimation extends StatefulWidget {
 
 class _RollingDieAnimationState extends State<RollingDieAnimation> {
   WebViewController? _controller;
-  bool _isModelReadyForRoll = false; // This is our new flag
+  bool _isWebViewReady = false;
+  bool _isInitialModelLoaded = false;
+  bool _isModelReadyForRoll = false;
+  String? _currentDieType;
   String? _lastRollId;
+
+  // Map die types to their model asset paths
+  final Map<String, String> _dieModelPaths = {
+    'd4': 'assets/models/d4.glb',
+    'd6': 'assets/models/d6.glb',
+    'd8': 'assets/models/d8.glb',
+    'd10': 'assets/models/d10.glb',
+    'd12': 'assets/models/d12.glb',
+    'd20': 'assets/models/d20.glb',
+    'd%': 'assets/models/d10_100.glb',
+  };
 
   @override
   void initState() {
     super.initState();
-    debugPrint("[RDA] ------------------ INIT STATE ------------------");
     _initializeWebView();
   }
 
   Future<void> _initializeWebView() async {
-    debugPrint("[RDA] 1. Initializing WebView Controller...");
-    final controller =
-        WebViewController()
-          ..setJavaScriptMode(JavaScriptMode.unrestricted)
-          ..setBackgroundColor(Colors.transparent)
-          ..setOnConsoleMessage((message) {
-            debugPrint(
-              "[WebViewConsole] ${message.level.name}: ${message.message}",
-            );
-          })
-          // --- THIS IS THE KEY CHANGE ---
-          // We are now using a NavigationDelegate to know when the page is ready.
-          ..setNavigationDelegate(
-            NavigationDelegate(
-              onPageFinished: (String url) {
-                debugPrint(
-                  "[RDA] 3. Page Finished Loading. Triggering model load...",
-                );
-                // Now that the page is loaded, we can safely call our JS functions.
-                _loadDiceModel();
-              },
-              onWebResourceError: (WebResourceError error) {
-                debugPrint('''
-              Page resource error:
-              code: ${error.errorCode}
-              description: ${error.description}
-              errorType: ${error.errorType}
-              isForMainFrame: ${error.isForMainFrame}
-            ''');
-              },
-            ),
-          )
-          // -----------------------------
-          ..addJavaScriptChannel(
-            'DiceModelReady', // This channel is now used correctly as a "ready for roll" signal
-            onMessageReceived: (JavaScriptMessage message) {
-              debugPrint(
-                "[RDA] 6. JS Channel 'DiceModelReady' received: ${message.message}",
-              );
-              // The model is fully loaded in the WebView, we are ready to roll.
-              setState(() {
-                _isModelReadyForRoll = true;
-              });
-            },
-          )
-          ..addJavaScriptChannel(
-            'DiceRollComplete',
-            onMessageReceived: (JavaScriptMessage message) {
-              debugPrint(
-                "[RDA] 9. JS Channel 'DiceRollComplete' received: ${message.message}",
-              );
-            },
-          );
+    final controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Colors.transparent)
+      ..setOnConsoleMessage((message) {
+        debugPrint("[WebViewConsole] ${message.level.name}: ${message.message}");
+      })
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageFinished: (String url) {
+            if (mounted) setState(() => _isWebViewReady = true);
+          },
+          onWebResourceError: (WebResourceError error) {
+            debugPrint('Page resource error: ${error.description}');
+          },
+        ),
+      )
+      ..addJavaScriptChannel(
+        'DiceModelReady',
+        onMessageReceived: (JavaScriptMessage message) {
+          if (mounted) {
+            setState(() {
+              _isModelReadyForRoll = true;
+            });
+          }
+        },
+      )
+      ..addJavaScriptChannel(
+        'DiceRollComplete',
+        onMessageReceived: (JavaScriptMessage message) {
+          if (mounted) {
+            context.read<DiceRollerProvider>().endRolling();
+          }
+        },
+      );
 
     try {
-      debugPrint("[RDA] 2. Loading HTML file from assets...");
-      final htmlString = await rootBundle.loadString(
-        'assets/www/dice_board.html',
-      );
+      final htmlString = await rootBundle.loadString('assets/www/dice_board.html');
       await controller.loadHtmlString(htmlString, baseUrl: null);
     } catch (e) {
-      debugPrint("[RDA] CRITICAL ERROR loading HTML file: $e");
+      debugPrint("CRITICAL ERROR loading HTML file: $e");
     }
 
-    setState(() {
-      _controller = controller;
-    });
-  }
-
-  Future<void> _loadDiceModel() async {
-    if (_controller == null) {
-      debugPrint("[RDA] ERROR: _loadDiceModel called but controller is null.");
-      return;
-    }
-    debugPrint("[RDA] 4. Loading d20.glb model into memory...");
-
-    try {
-      final byteData = await rootBundle.load('assets/models/d20.glb');
-      final buffer = byteData.buffer.asUint8List();
-      final modelDataB64 = base64Encode(buffer);
-      debugPrint(
-        "[RDA] 5. Model loaded and encoded. Sending to 'initScene' in WebView...",
-      );
-
-      await _controller!.runJavaScript('window.initScene("$modelDataB64");');
-    } catch (e) {
-      debugPrint("[RDA] CRITICAL ERROR loading dice model into WebView: $e");
+    if (mounted) {
+      setState(() {
+        _controller = controller;
+      });
     }
   }
 
-  void _triggerRoll() {
-    // We now check if the model is ready for a roll.
-    if (_controller == null || !_isModelReadyForRoll) {
-      debugPrint(
-        "[RDA] SKIPPING ROLL: Controller not ready (${_controller != null}) or model not ready for roll (${_isModelReadyForRoll}).",
-      );
-      return;
-    }
-    debugPrint("[RDA] 7. _triggerRoll called.");
+  void _handleRoll() {
+    if (!_isWebViewReady || _controller == null) return;
+
     final provider = context.read<DiceRollerProvider>();
-    if (provider.history.isEmpty) {
-      debugPrint("[RDA] SKIPPING ROLL: History is empty.");
-      return;
-    }
+    if (provider.history.isEmpty) return;
+
     final latestRoll = provider.history.first;
-    final finalResult = latestRoll.individualRolls.first;
+    final requiredDieType = provider.currentBaseDiceType;
 
     final currentRollId = latestRoll.hashCode.toString();
-    if (_lastRollId == currentRollId) {
-      return; // Silently skip if we already processed this roll
+    if (_lastRollId == currentRollId && _isModelReadyForRoll) {
+      return;
     }
-    _lastRollId = currentRollId;
+
+    if (_currentDieType != requiredDieType) {
+      _isModelReadyForRoll = false;
+      _changeDiceModel(requiredDieType);
+      return;
+    }
+
+    if (_isModelReadyForRoll) {
+      _lastRollId = currentRollId;
+      _triggerRoll(latestRoll.individualRolls.first);
+    }
+  }
+
+  Future<void> _changeDiceModel(String dieType) async {
+    if (_controller == null || !_dieModelPaths.containsKey(dieType)) return;
+
+    setState(() {
+      _currentDieType = dieType;
+      _isModelReadyForRoll = false;
+    });
+
+    try {
+      final assetPath = _dieModelPaths[dieType]!;
+      final byteData = await rootBundle.load(assetPath);
+      final buffer = byteData.buffer.asUint8List();
+      final modelDataB64 = base64Encode(buffer);
+
+      final functionName = !_isInitialModelLoaded ? 'window.initScene' : 'window.loadNewModel';
+      await _controller!.runJavaScript('$functionName("$modelDataB64");');
+
+      if (!_isInitialModelLoaded) {
+        setState(() {
+          _isInitialModelLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("CRITICAL ERROR loading dice model into WebView: $e");
+    }
+  }
+
+  void _triggerRoll(int finalResult) {
+    if (_controller == null) return;
 
     final rollData = jsonEncode({'result': finalResult});
-    debugPrint("[RDA] 8. Sending roll data to JS: $rollData");
-
     _controller!.runJavaScript('window.rollDie(\'$rollData\');');
+
+    setState(() {
+      _isModelReadyForRoll = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_controller == null) {
+    if (_controller == null || !_isWebViewReady) {
       return const SizedBox(
         height: 150,
         child: Center(child: CircularProgressIndicator()),
@@ -157,7 +164,7 @@ class _RollingDieAnimationState extends State<RollingDieAnimation> {
     return Consumer<DiceRollerProvider>(
       builder: (context, provider, child) {
         if (provider.isRolling) {
-          _triggerRoll();
+          _handleRoll();
         }
         return child!;
       },

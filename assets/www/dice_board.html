@@ -70,6 +70,11 @@
             const bytes = new Uint8Array(len);
             for (let i = 0; i < len; i++) { bytes[i] = binary_string.charCodeAt(i); }
             const buffer = bytes.buffer;
+            _loadModel(buffer);
+            animate();
+        };
+
+        function _loadModel(buffer) {
             const loader = new THREE.GLTFLoader();
             loader.parse(buffer, '', (gltf) => {
                 die = gltf.scene;
@@ -80,7 +85,21 @@
                 die.userData.physicsBody = dieBody;
                 DiceModelReady.postMessage('ready');
             });
-            animate();
+        }
+
+        window.loadNewModel = function(modelDataB64) {
+            if (die) {
+                scene.remove(die);
+                if (die.userData.physicsBody) {
+                    world.removeBody(die.userData.physicsBody);
+                }
+            }
+            const binary_string = window.atob(modelDataB64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) { bytes[i] = binary_string.charCodeAt(i); }
+            const buffer = bytes.buffer;
+            _loadModel(buffer);
         };
 
         window.rollDie = function(rollDataJSON) {
