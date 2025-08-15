@@ -19,7 +19,9 @@
         let scene, camera, renderer, world, die = null;
 
         window.initScene = function(modelDataB64) {
-            
+            console.log("DIAGNOSTIC: initScene called.");
+            document.body.style.backgroundColor = 'red';
+
             // --- THE DEFINITIVE FIX IS HERE ---
             // The targetRotations object is now defined INSIDE initScene.
             // This guarantees it exists before any other code can possibly use it.
@@ -75,8 +77,11 @@
         };
 
         function _loadModel(buffer) {
+            console.log("DIAGNOSTIC: _loadModel called.");
             const loader = new THREE.GLTFLoader();
             loader.parse(buffer, '', (gltf) => {
+                console.log("DIAGNOSTIC: Model parsed successfully.");
+                document.body.style.backgroundColor = 'yellow';
                 die = gltf.scene;
                 die.scale.set(0.5, 0.5, 0.5);
                 scene.add(die);
@@ -84,6 +89,9 @@
                 world.addBody(dieBody);
                 die.userData.physicsBody = dieBody;
                 DiceModelReady.postMessage('ready');
+            }, (error) => {
+                console.error("DIAGNOSTIC: GLTFLoader parsing error:", error);
+                document.body.style.backgroundColor = 'orange';
             });
         }
 
@@ -103,10 +111,15 @@
         };
 
         window.rollDie = function(rollDataJSON) {
+            console.log("DIAGNOSTIC: rollDie called.");
+            document.body.style.backgroundColor = 'green';
             const rollData = JSON.parse(rollDataJSON);
             const finalResult = rollData.result;
 
-            if (!die || !die.userData.physicsBody) { return; }
+            if (!die || !die.userData.physicsBody) {
+                console.error("DIAGNOSTIC: rollDie called but die or physicsBody is missing.");
+                return;
+            }
             const body = die.userData.physicsBody;
             body.position.set(Math.random() - 0.5, 3, Math.random() - 0.5);
             body.velocity.set(0, 0, 0);
@@ -116,6 +129,8 @@
             body.applyImpulse(force, worldPoint);
 
             setTimeout(() => {
+                console.log("DIAGNOSTIC: Starting tween.");
+                document.body.style.backgroundColor = 'purple';
                 body.angularVelocity.set(0, 0, 0);
                 body.velocity.set(0, 0, 0);
                 
