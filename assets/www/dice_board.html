@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Dice Board</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: transparent; }
+    </style>
+</head>
+<body>
+    <!-- Inlined libraries -->
+    <script> /* THREE.JS CODE */ </script>
+    <script> /* CANNON.JS CODE */ </script>
+    <script> /* GLTFLoader.JS CODE */ </script>
+
+    <!-- Application Logic -->
+    <script>
+        let scene, camera, renderer, world, die = null;
+
+        window.initScene = function(modelDataB64) {
+            
+            // --- THE DEFINITIVE FIX IS HERE ---
+            // The targetRotations object is now defined INSIDE initScene.
+            // This guarantees it exists before any other code can possibly use it.
+            window.targetRotations = {
+                "1": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.000000, -0.000000, 1.000000), 3.141593),
+                "2": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.499852, 0.000000, -0.866111), 0.729615),
+                "3": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.925598, 0.000000, 0.378509), 1.910197),
+                "4": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.925598, 0.000000, 0.378509), 1.231395),
+                "5": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.790608, 0.000000, -0.612323), 1.910484),
+                "6": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.134734, 0.000000, 0.990882), 1.231202),
+                "7": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.499852, 0.000000, -0.866111), 2.411978),
+                "8": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-1.000000, 0.000000, 0.000000), 0.730213),
+                "9": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.134734, 0.000000, 0.990882), 1.910390),
+                "10": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.790608, 0.000000, -0.612323), 1.231108),
+                "11": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.790608, 0.000000, 0.612323), 1.910484),
+                "12": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.134734, 0.000000, -0.990882), 1.231202),
+                "13": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(1.000000, 0.000000, 0.000000), 2.411379),
+                "14": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.499852, 0.000000, 0.866111), 0.729615),
+                "15": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.135051, 0.000000, -0.990839), 1.910652),
+                "16": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.790601, 0.000000, 0.612332), 1.230927),
+                "17": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.925604, 0.000000, -0.378494), 1.910620),
+                "18": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.925622, 0.000000, -0.378448), 1.230991),
+                "19": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(-0.500023, 0.000000, 0.866012), 2.411868),
+                "20": new CANNON.Quaternion().setFromAxisAngle(new CANNON.Vec3(0.822855, 0.000000, -0.568252), 0.000045),
+            };
+            // ------------------------------------
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 5, 0);
+            camera.lookAt(0, 0, 0);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+            const light = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(light);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+            world = new CANNON.World({ gravity: new CANNON.Vec3(0, -30, 0) });
+            const floorShape = new CANNON.Plane();
+            const floorBody = new CANNON.Body({ mass: 0 });
+            floorBody.addShape(floorShape);
+            floorBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1,0,0), -Math.PI/2);
+            world.addBody(floorBody);
+            const binary_string = window.atob(modelDataB64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) { bytes[i] = binary_string.charCodeAt(i); }
+            const buffer = bytes.buffer;
+            const loader = new THREE.GLTFLoader();
+            loader.parse(buffer, '', (gltf) => {
+                die = gltf.scene;
+                die.scale.set(0.5, 0.5, 0.5);
+                scene.add(die);
+                const dieBody = new CANNON.Body({ mass: 1, shape: new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5)), });
+                world.addBody(dieBody);
+                die.userData.physicsBody = dieBody;
+                DiceModelReady.postMessage('ready');
+            });
+            animate();
+        };
+
+        window.rollDie = function(rollDataJSON) {
+            const rollData = JSON.parse(rollDataJSON);
+            const finalResult = rollData.result;
+
+            if (!die || !die.userData.physicsBody) { return; }
+            const body = die.userData.physicsBody;
+            body.position.set(Math.random() - 0.5, 3, Math.random() - 0.5);
+            body.velocity.set(0, 0, 0);
+            body.angularVelocity.set(0, 0, 0);
+            const force = new CANNON.Vec3(Math.random()*20-10, 0, Math.random()*20-10);
+            const worldPoint = new CANNON.Vec3(body.position.x + Math.random()*0.2-0.1, body.position.y, body.position.z + Math.random()*0.2-0.1);
+            body.applyImpulse(force, worldPoint);
+
+            setTimeout(() => {
+                body.angularVelocity.set(0, 0, 0);
+                body.velocity.set(0, 0, 0);
+                
+                const targetQuaternion = window.targetRotations[String(finalResult)] || window.targetRotations["20"];
+                
+                if (!targetQuaternion) {
+                    console.error("This should not happen. Lookup failed for result:", finalResult);
+                    return;
+                }
+
+                const startQuaternion = body.quaternion.clone();
+                let t = 0;
+                const tweenDuration = 0.5;
+                const tween = () => {
+                    t += 1/60;
+                    const progress = Math.min(t / tweenDuration, 1);
+                    const threeStart = new THREE.Quaternion(startQuaternion.x, startQuaternion.y, startQuaternion.z, startQuaternion.w);
+                    const threeTarget = new THREE.Quaternion(targetQuaternion.x, targetQuaternion.y, targetQuaternion.z, targetQuaternion.w);
+                    threeStart.slerp(threeTarget, progress);
+                    body.quaternion.set(threeStart.x, threeStart.y, threeStart.z, threeStart.w);
+                    if (progress < 1) {
+                        requestAnimationFrame(tween);
+                    } else {
+                        DiceRollComplete.postMessage('Roll Finished');
+                    }
+                };
+                tween();
+            }, 1500);
+        }
+
+        function animate() {
+            if (!world) return;
+            requestAnimationFrame(animate);
+            world.step(1 / 60);
+            if (die && die.userData.physicsBody) {
+                die.position.copy(die.userData.physicsBody.position);
+                die.quaternion.copy(die.userData.physicsBody.quaternion);
+            }
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+    </script>
+</body>
+</html>
